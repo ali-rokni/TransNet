@@ -3,10 +3,11 @@ import numpy as np
 
 
 class WISDMDataset(Dataset):
-    def __init__(self):
+    def __init__(self, lazy=False):
         subjects = np.setdiff1d(range(1, 37), 19)
         Dataset.__init__(self, name='WISDM', num_classes=6, segment_length=200, num_channels=3, num_loc=1, subjects=subjects)
-        self.XR, self.YR, self.SR = self.read_data()
+        if lazy != True:
+            self.XR, self.YR, self.SR = self.read_data()
         # self.XR, self.YR, self.SR = self.segment(XR, YR, SR)
         # TODO: fix this
         # X1 = XR[:, 0, :]
@@ -24,7 +25,7 @@ class WISDMDataset(Dataset):
         return self.X1, self.X2, self.X3, self.YR, self.SR
 
     def read_data(self):
-        filename = 'C:\D\WSU\Research\Experiments\DATASETS\WISDM_ar_latest\WISDM_ar_v1.1\\raw_cleaned.csv'
+        filename = self.config[self.name]['path'] + 'raw_cleaned.csv'
         sig = np.genfromtxt(filename, delimiter=',', dtype=str)
         activity_names = ['Nothing', 'Walking', 'Jogging', 'Sitting', 'Standing', 'Upstairs', 'Downstairs']
         S = self.removeBlanks(sig[:, 0])

@@ -5,17 +5,17 @@ import numpy as np
 class OPPDataset(Dataset):
     def __init__(self):
         subjects = range(1,5)
-        Dataset.__init__(self, name='OPP2', num_classes=4, segment_length=150, num_channels=3, num_loc=5, subjects=subjects)
+        Dataset.__init__(self, name='OPP', num_classes=4, segment_length=150, num_channels=3, num_loc=5, subjects=subjects)
         self.XR, self.YR, self.SR = self.read_data(mode=1)
 
-    def read_data(self, mode = 1):
+    def read_data(self, mode=1):
         XR = []
         YR = []
         SR = []
         import datetime
         for i in range(1,5):
             print('before: ', i, datetime.datetime.now())
-            filename = 'C:\D\WSU\Research\Experiments\OpportunityUCIDataset\scripts\\benchmark\S' + str(i) + '.csv'
+            filename = self.config[self.name]['path'] + 'S' + str(i) + '.csv'
             sig = np.genfromtxt(filename, delimiter=',', dtype=str)
             a, b = sig.shape
             X = sig[:,1:b-2]

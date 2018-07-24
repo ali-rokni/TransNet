@@ -3,12 +3,7 @@ import random
 import datetime
 num_features = 18
 seed = 123
-# segment_length = 125
-# num_classes = 19
-# num_features = 5
-# segment_length = 125
-# num_channels = 3
-# num_loc = 5
+
 deep = True
 from numpy import genfromtxt
 from sklearn.feature_selection import SelectKBest
@@ -55,15 +50,16 @@ def feature_extract(sig):
         return [mnvalue, minvalue, maxvalue, p2p, variance]
 
 
-
 def feature_select(X, Y, k=10):
     return SelectKBest(chi2, k).fit_transform(X, Y)
+
 
 def extract_feature3D(dataset, X):
     Z = np.empty(shape=(len(X), num_features * dataset.num_channels * dataset.num_loc))
     for i in range(len(X)):
         Z[i] = feature_extract(X[i, :, :].T)
     return Z
+
 
 def extract_random_instances_per_sub(dataset, X, Y, n, S, subs):
     mask = (S == subs[0])
@@ -181,6 +177,40 @@ def getUpToNth(Xt, Yt, n):
 #     return X, Y, S
 
 
+# def create_test_and_train_for_loc(dataset, train_loc, test_loc, train_subjects, test_subjects, deepy = deep):
+#     X1, Y1, S1 = dataset.getXYS(deepy)
+#
+#     X[:, j, :] = ut.preprocess(self, X1[i, :], deepy)
+#     X[m, self.num_loc + j, :] = ut.preprocess(self, X2[i, :], deepy)
+#     X[m, 2 * self.num_loc + j, :] = ut.preprocess(self, X3[i, :], deepy)
+#
+#     mask2 = False
+#     for item in train_subjects:
+#         mask2 |= S == item
+#     # mask &= mask2
+#     XT = X[mask2]
+#     YT = Y[mask2]
+#     ST = S[mask2]
+#     # XT = X[mask]
+#     # YT = Y[mask]
+#     # ST = S[mask]
+#     # mask = (SZ == 1)
+#     mask2 = False
+#     for item in test_subjects:
+#         mask2 |= S == item
+#     # mask &= mask2
+#     XS = X[mask2]
+#     YS = Y[mask2]
+#     # ZS = Z[mask]
+#     SS = S[mask2]
+#     # XS = X[mask]
+#     # YS = Y[mask]
+#     # # ZS = Z[mask]
+#     # SS = S[mask]
+#
+#     return XT, YT, ST, XS, YS, SS
+
+
 def create_test_and_train(dataset, train_subjects, test_subjects, deepy = deep):
     X, Y, S = dataset.getXYS(deepy)
     mask2 = False
@@ -209,6 +239,47 @@ def create_test_and_train(dataset, train_subjects, test_subjects, deepy = deep):
 
     return XT, YT, ST, XS, YS, SS
 
+
+
+def create_test_and_train_per_loc(dataset, train_subjects, test_subjects, train_loc, test_loc, deepy = deep):
+    X, Y, S = dataset.getXYS(deepy)
+    mask2 = False
+    for item in train_subjects:
+        mask2 |= S == item
+    # mask &= mask2
+    XT = X[mask2]
+    YT = Y[mask2]
+    ST = S[mask2]
+    # XT = X[mask]
+    # YT = Y[mask]
+    # ST = S[mask]
+    # mask = (SZ == 1)
+    mask2 = False
+    for item in test_subjects:
+        mask2 |= S == item
+    # mask &= mask2
+    XS = X[mask2]
+    YS = Y[mask2]
+    # ZS = Z[mask]
+    SS = S[mask2]
+    # XS = X[mask]
+    # YS = Y[mask]
+    # # ZS = Z[mask]
+    # SS = S[mask]
+    a, b, c = XT.shape
+    XTL = np.empty(shape=(a, dataset.num_channels * len(train_loc), c))
+    for i in range(len(train_loc)):
+        XTL[:, i*3, :] = XT[:,train_loc[i],: ]
+        XTL[:, i*3+1, :] = XT[:,dataset.num_loc + train_loc[i],:]
+        XTL[:,i*3+2 , :] = XT[:,2 * dataset.num_loc + train_loc[i],:]
+
+    XSL = np.empty(shape=(a, dataset.num_channels * len(test_loc), c))
+    for i in range(len(test_loc)):
+        XSL[:, i * 3, :] = XS[:, test_loc[i], :]
+        XSL[:, i * 3 + 1, :] = XS[:, dataset.num_loc + test_loc[i], :]
+        XSL[:, i * 3 + 2, :] = XS[:, 2 * dataset.num_loc + test_loc[i], :]
+
+    return XTL, YT, ST, XSL, YS, SS
 
 def testAccuracy(dataset, XT, YT, XS, YS, Xtr, Ytr, subs, j):
     print(subs, np.unique(YT), np.unique(YS))
@@ -387,3 +458,55 @@ def testOverallAccuracy(dataset, percent):
 
 def create_transfer_set(dataset, XS, YS, max_trans, SS, subs):
     return extract_random_instances_per_sub(dataset, XS, YS, max_trans, SS, subs)
+
+
+def create_sequential_transfer_set(dataset, XS, YS, max_trans, SS, subs):
+    unique_ys = np.unique(YS)
+    d = dict()
+    for y in unique_ys:
+        d[y] = []
+
+    for c, v in enumerate(YS):
+        if len(d[v]) < max_trans:
+            d[v].append(c)
+
+    transfer_indexes = [i for x in d.values() for i in x]
+    test_mask = np.ones(len(YS), dtype=bool)
+    test_mask[transfer_indexes] = False
+
+    return XS[~test_mask], YS[~test_mask], XS[test_mask], YS[test_mask]
+
+def transfer_percent(XS, YS, percent):
+    np.random.seed(seed)
+    np.random.shuffle(XS)
+    np.random.seed(seed)
+    np.random.shuffle(YS)
+    split_point = int(percent * len(YS))
+    Xt = XS[:split_point]
+    Yt = YS[:split_point]
+    Xs = XS[split_point:len(YS)]
+    Ys = YS[split_point:len(YS)]
+    return Xt, Yt, Xs, Ys
+
+
+def get_up_to_percent(X, Y, p):
+    split_point = int(p * len(Y))
+    return X[:split_point], Y[:split_point]
+
+def divide_in_3(X, Y):
+    d1 = 0.35
+    d2 = 0.7
+    np.random.seed(seed)
+    np.random.shuffle(X)
+    np.random.seed(seed)
+    np.random.shuffle(Y)
+    split_point1 = int(d1 * len(Y))
+    split_point2 = int(d2 * len(Y))
+    X1 = X[:split_point1]
+    Y1 = Y[:split_point1]
+    X2 = X[split_point1:split_point2]
+    Y2 = Y[split_point1:split_point2]
+    X3 = X[split_point2:len(Y)]
+    Y3 = Y[split_point2:len(Y)]
+
+    return X1, Y1, X2, Y2, X3, Y3

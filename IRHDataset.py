@@ -1,11 +1,13 @@
 from Dataset import Dataset
 import numpy as np
+import configparser
 
 
 class IRHDataset(Dataset):
     def __init__(self):
-        subjects = np.setdiff1d(range(1,22), [1, 2, 10, 12, 13, 14, 15, 17, 20, 22])
-        Dataset.__init__(self, name='IRH', num_classes=24, segment_length=100, num_channels=3, num_loc=5, subjects=subjects)
+        subjects = np.setdiff1d(range(1, 22), [1, 2, 10, 12, 13, 14, 15, 17, 20, 22])
+        Dataset.__init__(self, name='IRH', num_classes=24, segment_length=100, num_channels=3, num_loc=5,
+                         subjects=subjects)
         self.XR, self.YR, self.SR = self.read_data()
 
     def read_data(self):
@@ -14,26 +16,23 @@ class IRHDataset(Dataset):
         SR = []
         import datetime
         import os.path
-
         X = []
         for i in self.subjects:
             numAc = 0
             print('before: ', i, datetime.datetime.now())
             for mvt in range(1, 27):
-                filename = 'C:\D\WSU\Research\Experiments\surfaceV\S' + str(i) + '\sub' + str(i) + '-mvt (' + str(mvt) + ').dat-all' + '.csv'
-                if not os.path.exists(filename):
-                    continue
-                for loc in range(1,6):
-                    filename = 'C:\D\WSU\Research\Experiments\surfaceV\S' + str(i) + '\sub' + str(i) + '-mvt (' + str(mvt) +').dat-loc' + str(loc) +'.csv'
-
+                for loc in range(1, 6):
+                    filename = self.config[self.name]['path'] + 'S' + str(i) + '\sub' + str(i) + '-mvt' + str(
+                        mvt) + '-loc' + str(loc) + '.csv'
+                    if not os.path.exists(filename):
+                        continue
                     sig = np.genfromtxt(filename, delimiter=',', dtype=str)
-                    a, b = sig.shape
                     if loc == 1:
-                        X = sig[:,0:3]
+                        X = sig[:, 0:3]
                     else:
-                        X = np.hstack((X, sig[:,0:3]))
+                        X = np.hstack((X, sig[:, 0:3]))
                 # print(mvt, X.shape)
-                #self.removeBlanks(X)
+                # self.removeBlanks(X)
                 Y = (np.ones(shape=len(X)) * mvt).tolist()
                 X1, Y1 = self.segment(np.asarray(X, dtype=float), np.asarray(Y, dtype=int))
                 XR += X1
@@ -62,10 +61,10 @@ class IRHDataset(Dataset):
                 start += window - overlap
                 continue
             for i in range(self.num_loc):
-                currentX = X[start: start + window, i*3:(i*3)+3]
+                currentX = X[start: start + window, i * 3:(i * 3) + 3]
                 currentY = stats.mode(Y[start: start + window])[0][0]
                 Xs.append(currentX.T)
-                #print(i, np.asarray(Xs).shape)
+                # print(i, np.asarray(Xs).shape)
                 Ys.append(currentY)
             start += window - overlap
         # Xs = np.array(Xs)
@@ -80,7 +79,7 @@ class IRHDataset(Dataset):
         return X[~mask], Y[~mask], S[~mask]
 
     def removeBlanks(self, S):
-       # S = self.fillBlankWithZeros(S)
+        # S = self.fillBlankWithZeros(S)
 
         # S = S.astype(float)
         while np.any(S == '-999999'):

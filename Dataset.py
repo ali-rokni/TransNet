@@ -1,6 +1,8 @@
 import numpy as np
 import utils as ut
 import random
+import configparser
+
 class Dataset:
     def __init__(self, name, num_classes, num_channels, segment_length, num_loc, subjects):
         self.name = name
@@ -15,7 +17,8 @@ class Dataset:
         self.X = []
         self.Y = []
         self.S = []
-
+        self.config = configparser.ConfigParser()
+        self.config.read('config.ini')
 
     def computeXYS(self, deepy):
         X1 = self.XR[:, 0, :]
@@ -56,14 +59,15 @@ class Dataset:
             self.X, self.Y, self.S = self.computeXYS(deepy)
         return self.X, self.Y, self.S
 
-    def getSplitedXY(self, deepy, percent):
+    def getSplitedXY(self, deepy, percent, shuffle=True):
         X, Y, S = self.getXYS(deepy)
-        np.random.seed(123)
-        np.random.shuffle(X)
-        np.random.seed(123)
-        np.random.shuffle(Y)
-        np.random.seed(123)
-        np.random.shuffle(S)
+        if shuffle:
+            np.random.seed(123)
+            np.random.shuffle(X)
+            np.random.seed(123)
+            np.random.shuffle(Y)
+            np.random.seed(123)
+            np.random.shuffle(S)
         a = len(X)
         b = int(a*percent)
         XS = X[0:b]
@@ -73,8 +77,3 @@ class Dataset:
         YT = Y[b+1:a]
         ST = S[b+1:a]
         return XT, YT, ST, XS, YS, SS
-
-
-
-
-
